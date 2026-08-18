@@ -1,0 +1,37 @@
+name: no plaintext payloads
+
+# This repository is public because GitHub Pages on a free organisation plan
+# serves only from a public repository. The guard in publish.sh runs before a
+# push; this one runs after, so a page committed by hand -- or by a future
+# session that forgot --passphrase -- cannot sit here in the clear unnoticed.
+
+on:
+  push:
+    paths: ['docs/**']
+  pull_request:
+    paths: ['docs/**']
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Every page in docs/ must carry an encrypted payload
+        run: |
+          fail=0
+          found=0
+          for f in $(find docs -name '*.html'); do
+            found=$((found + 1))
+            if grep -q '"enc":"AES-GCM"' "$f"; then
+              echo "ok       $f"
+            else
+              echo "PLAINTEXT $f"
+              fail=1
+            fi
+          done
+          echo "$found page(s) checked"
+          if [ "$fail" = "1" ]; then
+            echo "::error::A page in docs/ has an unencrypted payload. This repo is public."
+            exit 1
+          fi
